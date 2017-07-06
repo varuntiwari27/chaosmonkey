@@ -6,10 +6,10 @@ import subprocess
 from subprocess import Popen, PIPE
 from concurrent import futures
 from multiprocessing import Pool, Process
+import sqlite3
+import datetime, time
 
 
-
-# from urllib.request import urlopen
 app = Flask(__name__)
 with app.open_resource('json/cloud.json') as f:
     contents=json.loads(f.read())
@@ -21,14 +21,14 @@ def chaosmonkey():
     data_dict = {}
     req_url = request.json
     if req_url["hvname"] == '':
-        if req_url['service'] != '':
+        if req_url['clouds'][j]['service'] != '':
             for i in req_url['clouds']:
                 k = k + 1
             while k > j:
                 with futures.ThreadPoolExecutor(max_workers=10) as executor:
                     cloudname = req_url['clouds'][j]['name']
-                    servicename = req_url['service'][j]['name']
-                    action = req_url['service'][j]['action']                    
+                    servicename = req_url['clouds'][j]['service']
+                    action = req_url['clouds'][j]['action']   
                     data_dict[cloudname] = {}
                     openstack_obj = Openstack(cloudname)
                     token, tenantid = openstack_obj.getToken()
@@ -90,9 +90,19 @@ class Openstack():
             url1 = "https://"+self.apihost+":8774/v2.1/"+tenantid+"/servers/"+vmid+"/action"
             auth = {"os-"+action : "null"}
             req = requests.post(url1, data=json.dumps(auth), headers=header)
+            now = datetime.datetime.now()
             data_dict['vmname'] = vmname
             data_dict['vmid'] = vmid
             data_dict['state'] = action
+            data_dict['cloud'] = cloudname
+            data_dict['time'] = now
+            conn = sqlite3.connect("/Users/vktiwar/service.db")
+            '''  Insert the response values in DB for future reference '''
+            c = conn.cursor()
+            c.execute("INSERT INTO vm_info VALUES (?,?,?,?,?)", (cloudname,vmname,vmid,action,now))
+            conn.commit()
+            conn.close()
+
 
     def serv_disable_enable(self, token, tenantid, service, action, cloudname, data_dict):
         '''   Method to disable/enable one particular service based on Binary    '''
@@ -104,9 +114,18 @@ class Openstack():
         url1 = "https://"+self.apihost+":8774/v2.1/"+tenantid+"/os-services/"+action
         auth = {'binary': service, 'host': host}
         req = requests.put(url1, data=json.dumps(auth), headers=header).json()
+        now = datetime.datetime.now()
         data_dict['state'] = action
         data_dict['hypervisor'] = host
         data_dict['service'] = service
+        data_dict['cloud'] = cloudname
+        data_dict['time'] = now
+        '''  Insert the response values in DB for future reference '''
+        conn = sqlite3.connect("/Users/vktiwar/service.db")
+        c = conn.cursor()
+        c.execute("INSERT INTO serv_info VALUES (?,?,?,?,?)", (cloudname,host,service,action,now))
+        conn.commit()
+        conn.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, threaded=True)
