@@ -129,19 +129,22 @@ class Openstack():
 
 @app.route('/vmreport', methods=['GET'])
 def vmreport():
-        conn = sqlite3.connect("service.db")
-        c = conn.cursor()
-        c.execute("SELECT * FROM vm_info")
-        report = c.fetchall()
-        return jsonify(report)
+
+    ''' The db path should be where the db is installed '''
+    conn = sqlite3.connect("service.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM vm_info")
+    report = c.fetchall()
+    return jsonify(report)
 
 @app.route('/hvreport', methods=['GET'])
 def hvreport():
-        conn = sqlite3.connect("service.db")
-        c = conn.cursor()
-        c.execute("SELECT * FROM serv_info")
-        report = c.fetchall()
-        return jsonify(report)
+    ''' The db path should be where the db is installed '''
+    conn = sqlite3.connect("service.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM serv_info")
+    report = c.fetchall()
+    return jsonify(report)
 
 
 if __name__ == '__main__':
