@@ -96,7 +96,7 @@ class Openstack():
             data_dict['state'] = action
             data_dict['cloud'] = cloudname
             data_dict['time'] = now
-            conn = sqlite3.connect("/Users/vktiwar/service.db")
+            conn = sqlite3.connect("service.db")
             '''  Insert the response values in DB for future reference '''
             c = conn.cursor()
             c.execute("INSERT INTO vm_info VALUES (?,?,?,?,?)", (cloudname,vmname,vmid,action,now))
@@ -126,6 +126,23 @@ class Openstack():
         c.execute("INSERT INTO serv_info VALUES (?,?,?,?,?)", (cloudname,host,service,action,now))
         conn.commit()
         conn.close()
+
+@app.route('/vmreport', methods=['GET'])
+def vmreport():
+        conn = sqlite3.connect("service.db")
+        c = conn.cursor()
+        c.execute("SELECT * FROM vm_info")
+        report = c.fetchall()
+        return jsonify(report)
+
+@app.route('/hvreport', methods=['GET'])
+def hvreport():
+        conn = sqlite3.connect("service.db")
+        c = conn.cursor()
+        c.execute("SELECT * FROM serv_info")
+        report = c.fetchall()
+        return jsonify(report)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, threaded=True)
