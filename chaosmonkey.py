@@ -135,7 +135,17 @@ def vmreport():
     c = conn.cursor()
     c.execute("SELECT * FROM vm_info")
     report = c.fetchall()
-    return jsonify(report)
+    vm_list = []
+    for row in report:
+        d = collections.OrderedDict()
+        d['cloudname'] = row[0]
+        d['vmname'] = row[1]
+        d['vmid'] = row[2]
+        d['action'] = row[3]
+        d['time'] = row[4]
+        vm_list.append(d)
+    return jsonify(vm_list)
+    conn.close()
 
 @app.route('/hvreport', methods=['GET'])
 def hvreport():
@@ -144,7 +154,17 @@ def hvreport():
     c = conn.cursor()
     c.execute("SELECT * FROM serv_info")
     report = c.fetchall()
-    return jsonify(report)
+    hv_list = []
+    for row in report :
+        d = collections.OrderedDict()
+        d['cloudname'] = row[0]
+        d['host'] = row[1]
+        d['service'] = row[2]
+        d['action'] = row[3]
+        d['time'] = row[4]
+        hv_list.append(d)
+    return jsonify(hv_list)
+    conn.close()
 
 
 if __name__ == '__main__':
