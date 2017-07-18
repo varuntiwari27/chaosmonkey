@@ -59,20 +59,31 @@ def chaosmonkey():
                         executor.submit(openstack_obj.cpu_mem,cloudname, token, tenantid, servicename, flag, data_dict[cloudname])
                         j += 1
             return jsonify(data_dict)
-    else:
-        hvname = req_url['hvname']
-        now = datetime.datetime.now()
-        message = "using IPMI to bring down the HV for chaosmonkey testing"
-        state = "down"
-        data_dict['message'] = message
-        data_dict['hypervisor'] = hvname
-        data_dict['state'] = state
-        data_dict['time'] = now
-        conn = sqlite3.connect("service.db")
-        c = conn.cursor()
-        c.execute("INSERT INTO hv_info VALUES (?,?,?,?)", (hvname,state,now,message))
-        conn.commit()
-        conn.close()
+     else:
+        for host in req_url['hvname']:
+            data_dict[host] = {}
+            now = datetime.datetime.now()
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(host, username="****", password="****")
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("sudo uptime", get_pty=True)
+            # ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("uptime", get_pty=True)
+            ssh_stdin.write('****\n')
+            ssh_stdin.flush()
+            output = ssh_stdout.read()
+            error = ssh_stderr.readlines()
+            raw = re.sub(".*password.*\n?", "", output).replace('\r','').replace('/n','')
+            string = re.split("\n+", raw)
+            string.remove('')
+            report = json.dumps(string)
+            data_dict[host]['report'] = report
+            data_dict[host]['host'] = host
+            data_dict[host]['time'] = now
+            conn = sqlite3.connect("service.db")
+            c = conn.cursor()
+            c.execute("INSERT INTO hv_info VALUES (?,?,?)", (host,report,now))
+            conn.commit()
+            conn.close()
     return jsonify(data_dict)
 
 
@@ -187,35 +198,33 @@ class Openstack():
             c.execute("INSERT INTO chaos_info VALUES (?,?,?,?,?)", (chaos_type,cloudname,host,new_string,now))
             conn.commit()
             conn.close()
-        else:
-            chaos_type = flag
+    else:
+        print "elif loop"
+        print "req_url is :", req_url
+        for host in req_url['hvname']:
+            data_dict[host] = {}
+            now = datetime.datetime.now()
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(host, username="****", password="****")
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("sudo apt install stress-ng | egrep -vi 'installed|remove|password|version|reading|building|lib*|timelimit|qemu|python' \n stress-ng -m 2 --timeout 10s --metrics-brief | grep 'stress-ng' | egrep -vi 'warning|dispatching|successful|default'", get_pty=True)
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("sudo uptime", get_pty=True)
             ssh_stdin.write('****\n')
             ssh_stdin.flush()
             output = ssh_stdout.read()
             error = ssh_stderr.readlines()
-            raw = re.sub(".*WARNING.*\n?|.*password.*\n?", "", output).replace('\r','').replace('stress-ng:','').replace('info:','')
-            string = re.sub(r'\[.+?\]\s*','',raw)
-            formattedstring = re.split("\n+", string)
-            formattedstring.remove('')
-            formattedstring.remove('')
-            new_string = json.dumps(formattedstring)
-            data_dict['chaos_type'] = chaos_type
-            data_dict['cloud'] = cloudname
-            data_dict['host'] = host
-            data_dict['report'] = formattedstring
-            data_dict['time'] = now
-            '''  Insert the response values in DB for future refernce '''
+            raw = re.sub(".*password.*\n?", "", output).replace('\r','').replace('/n','')
+            string = re.split("\n+", raw)
+            string.remove('')
+            report = json.dumps(string)
+            data_dict[host]['report'] = report
+            data_dict[host]['host'] = host
+            data_dict[host]['time'] = now
             conn = sqlite3.connect("service.db")
             c = conn.cursor()
-            c.execute("INSERT INTO chaos_info VALUES (?,?,?,?,?)", (chaos_type,cloudname,host,new_string,now))
+            c.execute("INSERT INTO hv_info VALUES (?,?,?)", (host,report,now))
             conn.commit()
             conn.close()
-
-
+    return jsonify(data_dict)
 
 
 @app.route('/vmreport', methods=['GET'])
